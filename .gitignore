@@ -1,0 +1,27 @@
+# Dependencies
+node_modules/
+
+# Data files (too large for repo)
+*.json
+!package.json
+data_documents/
+backup/
+
+# Extraction scripts
+extract_*.js
+extract_*.mjs
+*_extract.js
+*_extract.mjs
+build_*.js
+convert_*.js
+debug_*.js
+debug_*.mjs
+locate_*.js
+
+# IDE
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db

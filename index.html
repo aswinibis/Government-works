@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GovData Insight | Interactive Dashboard</title>
+    <link rel="stylesheet" href="style.css">
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=Outfit:wght@500;700&display=swap"
+        rel="stylesheet">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+
+<body>
+    <div class="app-container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="brand">
+                <div class="logo-icon"></div>
+                <h1>GovData</h1>
+            </div>
+            <nav>
+                <ul>
+                    <li class="active" data-tab="dashboard">Dashboard</li>
+                    <li data-tab="documents">Documents</li>
+                    <li data-tab="analytics">Analytics</li>
+                    <li data-tab="search">Search</li>
+                </ul>
+            </nav>
+            <div class="status-indicator">
+                <span class="dot"></span> System Online
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <header>
+                <h2>Executive Overview</h2>
+                <div class="user-profile">
+                    <span>Admin User</span>
+                    <div class="avatar"></div>
+                </div>
+            </header>
+
+            <div id="content-area">
+                <!-- Dashboard View -->
+                <div id="dashboard-view" class="view active">
+                    <div class="stats-grid">
+                        <div class="card stat-card">
+                            <h3>Total Documents</h3>
+                            <p class="stat-value" id="doc-count">Loading...</p>
+                        </div>
+                        <div class="card stat-card">
+                            <h3>Total Words</h3>
+                            <p class="stat-value" id="word-count">Loading...</p>
+                        </div>
+                        <div class="card stat-card">
+                            <h3>Key Topics</h3>
+                            <p class="stat-value" id="topic-count">Loading...</p>
+                        </div>
+                    </div>
+
+                    <div class="charts-row">
+                        <div class="card chart-card wide">
+                            <h3>Document Content Distribution</h3>
+                            <canvas id="mainChart"></canvas>
+                        </div>
+                        <div class="card chart-card">
+                            <h3>Keyword Frequency</h3>
+                            <canvas id="keywordChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Search View -->
+                <div id="search-view" class="view">
+                    <h3>Deep Search</h3>
+                    <div class="search-bar-container">
+                        <input type="text" id="search-input"
+                            placeholder="Search across all documents (e.g. 'Audit', 'Finance', 'Article')...">
+                    </div>
+                    <div id="search-results" class="results-grid"></div>
+                </div>
+
+                <!-- Documents View -->
+                <div id="documents-view" class="view">
+                    <h3>Document Repository</h3>
+                    <div class="doc-list" id="doc-list">
+                        <!-- Enriched by JS -->
+                    </div>
+                    <div id="doc-preview" class="doc-preview hidden">
+                        <button id="close-preview">Close Preview</button>
+                        <div class="preview-content" id="preview-text"></div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="data.js"></script>
+    <script src="script.js" type="module"></script>
+</body>
+
+</html>

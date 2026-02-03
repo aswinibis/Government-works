@@ -1,0 +1,222 @@
+:root {
+    --bg-dark: #0f172a;
+    --bg-card: #1e293b;
+    --text-primary: #f8fafc;
+    --text-secondary: #94a3b8;
+    --accent: #38bdf8;
+    --accent-gradient: linear-gradient(135deg, #38bdf8 0%, #818cf8 100%);
+    --glass: rgba(30, 41, 59, 0.7);
+    --border: 1px solid rgba(148, 163, 184, 0.1);
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    font-family: 'Inter', sans-serif;
+    background-color: var(--bg-dark);
+    color: var(--text-primary);
+    overflow: hidden; /* App-like feel */
+}
+
+h1, h2, h3 {
+    font-family: 'Outfit', sans-serif;
+}
+
+.app-container {
+    display: flex;
+    height: 100vh;
+}
+
+/* Sidebar */
+.sidebar {
+    width: 260px;
+    background: var(--bg-card);
+    border-right: var(--border);
+    display: flex;
+    flex-direction: column;
+    padding: 2rem;
+}
+
+.brand {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 3rem;
+    color: var(--accent);
+}
+
+.brand h1 {
+    font-size: 1.5rem;
+    letter-spacing: -0.02em;
+}
+
+.sidebar nav ul {
+    list-style: none;
+}
+
+.sidebar nav li {
+    padding: 1rem;
+    margin-bottom: 0.5rem;
+    border-radius: 8px;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.sidebar nav li:hover, .sidebar nav li.active {
+    background: rgba(56, 189, 248, 0.1);
+    color: var(--accent);
+}
+
+.status-indicator {
+    margin-top: auto;
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.dot {
+    width: 8px;
+    height: 8px;
+    background: #4ade80;
+    border-radius: 50%;
+    box-shadow: 0 0 8px #4ade80;
+}
+
+/* Main Content */
+.main-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    background: radial-gradient(circle at top right, rgba(56, 189, 248, 0.1), transparent 40%);
+}
+
+header {
+    padding: 2rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+#content-area {
+    flex: 1;
+    overflow-y: auto;
+    padding: 0 2rem 2rem 2rem;
+}
+
+.view {
+    display: none;
+    animation: fadeIn 0.4s ease;
+}
+
+.view.active {
+    display: block;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Cards */
+.card {
+    background: var(--glass);
+    backdrop-filter: blur(10px);
+    border: var(--border);
+    border-radius: 16px;
+    padding: 1.5rem;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+    border-color: rgba(56, 189, 248, 0.3);
+}
+
+/* Stats Grid */
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+.stat-value {
+    font-size: 2.5rem;
+    font-weight: 700;
+    background: var(--accent-gradient);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin-top: 0.5rem;
+}
+
+/* Charts */
+.charts-row {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 1.5rem;
+    min-height: 400px;
+}
+
+.chart-card {
+    height: 400px;
+    position: relative;
+}
+
+/* Document List */
+.doc-list {
+    display: grid;
+    gap: 1rem;
+}
+
+.doc-item {
+    background: var(--bg-card);
+    padding: 1rem;
+    border-radius: 8px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border: var(--border);
+}
+
+.doc-item h4 {
+    color: var(--text-primary);
+}
+
+.doc-item span {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+}
+
+.btn {
+    padding: 0.5rem 1rem;
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 600;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+    width: 6px;
+}
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+::-webkit-scrollbar-thumb {
+    background: var(--bg-card);
+    border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+    background: var(--accent);
+}
