@@ -14,6 +14,8 @@
         rel="stylesheet">
     <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://kit.fontawesome.com/a076d05399.js" crossorigin="anonymous"></script>
+    <!-- Placeholder for icons or use text/svg -->
 </head>
 
 <body>
@@ -57,22 +59,49 @@
                         </div>
                         <div class="card stat-card">
                             <h3>Total Words</h3>
-                            <p class="stat-value" id="word-count">Loading...</p>
+                            <p class="stat-value" id="doc-words">Loading...</p>
                         </div>
                         <div class="card stat-card">
-                            <h3>Key Topics</h3>
-                            <p class="stat-value" id="topic-count">Loading...</p>
+                            <h3>Active Acts</h3>
+                            <p class="stat-value" id="doc-acts">Loading...</p>
                         </div>
                     </div>
 
                     <div class="charts-row">
                         <div class="card chart-card wide">
-                            <h3>Document Content Distribution</h3>
-                            <canvas id="mainChart"></canvas>
+                            <h3>Ministry Mentions</h3>
+                            <canvas id="ministryChart"></canvas>
                         </div>
                         <div class="card chart-card">
-                            <h3>Keyword Frequency</h3>
-                            <canvas id="keywordChart"></canvas>
+                            <h3>Document Types</h3>
+                            <canvas id="typeChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Documents View -->
+                <div id="documents-view" class="view">
+                    <div class="view-header">
+                        <h3>Document Repository</h3>
+                    </div>
+                    <div class="doc-list" id="doc-list">
+                        <!-- Enriched by JS -->
+                    </div>
+                </div>
+
+                <!-- Analytics View -->
+                <div id="analytics-view" class="view">
+                    <h3>Deep Analytics</h3>
+                    <div class="analytics-grid">
+                        <div class="card word-cloud-card">
+                            <h4>Keyword Cloud</h4>
+                            <canvas id="wordCloudChart"></canvas>
+                        </div>
+                        <div class="card table-explorer-card">
+                            <h4>Extracted Data Tables</h4>
+                            <div id="table-list" class="table-list-container">
+                                <!-- Tables enriched by JS -->
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -80,26 +109,48 @@
                 <!-- Search View -->
                 <div id="search-view" class="view">
                     <h3>Deep Search</h3>
-                    <div class="search-bar-container">
-                        <input type="text" id="search-input"
-                            placeholder="Search across all documents (e.g. 'Audit', 'Finance', 'Article')...">
+                    <div class="search-controls">
+                        <div class="search-bar-container">
+                            <i class="search-icon">🔍</i>
+                            <input type="text" id="search-input"
+                                placeholder="Search for terms, acts, or specific phrases...">
+                        </div>
+                        <div class="filters">
+                            <select id="filter-ministry">
+                                <option value="">All Ministries</option>
+                                <!-- Populated by JS -->
+                            </select>
+                            <select id="filter-type">
+                                <option value="">All Document Types</option>
+                                <option value="act">Acts & Rules</option>
+                                <option value="report">Reports</option>
+                                <option value="other">Other</option>
+                            </select>
+                        </div>
                     </div>
+                    <div id="search-stats" class="search-stats"></div>
                     <div id="search-results" class="results-grid"></div>
-                </div>
-
-                <!-- Documents View -->
-                <div id="documents-view" class="view">
-                    <h3>Document Repository</h3>
-                    <div class="doc-list" id="doc-list">
-                        <!-- Enriched by JS -->
-                    </div>
-                    <div id="doc-preview" class="doc-preview hidden">
-                        <button id="close-preview">Close Preview</button>
-                        <div class="preview-content" id="preview-text"></div>
-                    </div>
                 </div>
             </div>
         </main>
+    </div>
+
+    <!-- Document Reader Modal -->
+    <div id="doc-modal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="modal-title">Document Title</h3>
+                <div class="modal-actions">
+                    <button class="icon-btn" id="modal-copy" title="Copy Text">📋</button>
+                    <button class="icon-btn" id="modal-close" title="Close">✕</button>
+                </div>
+            </div>
+            <div class="modal-body" id="modal-body">
+                <!-- Content -->
+            </div>
+        </div>
+    </div>
+    </main>
     </div>
 
     <script src="data.js"></script>
