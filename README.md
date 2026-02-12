@@ -22,8 +22,16 @@ The dashboard analyzes extracted text from official Government of India PDF docu
 
 - **HTML5** - Semantic structure
 - **CSS3** - Modern dark theme with glassmorphism effects
-- **JavaScript (ES6+)** - Application logic
+- **JavaScript (ES2023 modules)** - Hardened application logic with safer DOM APIs
 - **Chart.js** - Data visualization
+
+
+## Security & Modernization Updates
+
+- Uses safer DOM rendering patterns (`textContent`, `createElement`) to reduce XSS exposure.
+- Adds a strict Content Security Policy (CSP) to limit script, style, and embedding sources.
+- Removes unnecessary third-party runtime scripts and keeps dependencies minimal.
+- Introduces debounced search + normalized in-memory document indexing for better performance.
 
 ## Getting Started
 
