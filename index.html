@@ -4,23 +4,20 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; upgrade-insecure-requests;">
     <title>GovData Insight | Interactive Dashboard</title>
     <link rel="stylesheet" href="style.css">
-    <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link
         href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=Outfit:wght@500;700&display=swap"
         rel="stylesheet">
-    <!-- Chart.js -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://kit.fontawesome.com/a076d05399.js" crossorigin="anonymous"></script>
-    <!-- Placeholder for icons or use text/svg -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js" defer></script>
 </head>
 
 <body>
     <div class="app-container">
-        <!-- Sidebar -->
         <aside class="sidebar">
             <div class="brand">
                 <div class="logo-icon"></div>
@@ -39,7 +36,6 @@
             </div>
         </aside>
 
-        <!-- Main Content -->
         <main class="main-content">
             <header>
                 <h2>Executive Overview</h2>
@@ -50,7 +46,6 @@
             </header>
 
             <div id="content-area">
-                <!-- Dashboard View -->
                 <div id="dashboard-view" class="view active">
                     <div class="stats-grid">
                         <div class="card stat-card">
@@ -79,17 +74,13 @@
                     </div>
                 </div>
 
-                <!-- Documents View -->
                 <div id="documents-view" class="view">
                     <div class="view-header">
                         <h3>Document Repository</h3>
                     </div>
-                    <div class="doc-list" id="doc-list">
-                        <!-- Enriched by JS -->
-                    </div>
+                    <div class="doc-list" id="doc-list"></div>
                 </div>
 
-                <!-- Analytics View -->
                 <div id="analytics-view" class="view">
                     <h3>Deep Analytics</h3>
                     <div class="analytics-grid">
@@ -99,14 +90,11 @@
                         </div>
                         <div class="card table-explorer-card">
                             <h4>Extracted Data Tables</h4>
-                            <div id="table-list" class="table-list-container">
-                                <!-- Tables enriched by JS -->
-                            </div>
+                            <div id="table-list" class="table-list-container"></div>
                         </div>
                     </div>
                 </div>
 
-                <!-- Search View -->
                 <div id="search-view" class="view">
                     <h3>Deep Search</h3>
                     <div class="search-controls">
@@ -118,7 +106,6 @@
                         <div class="filters">
                             <select id="filter-ministry">
                                 <option value="">All Ministries</option>
-                                <!-- Populated by JS -->
                             </select>
                             <select id="filter-type">
                                 <option value="">All Document Types</option>
@@ -135,25 +122,20 @@
         </main>
     </div>
 
-    <!-- Document Reader Modal -->
     <div id="doc-modal" class="modal-overlay hidden">
         <div class="modal-content">
             <div class="modal-header">
                 <h3 id="modal-title">Document Title</h3>
                 <div class="modal-actions">
-                    <button class="icon-btn" id="modal-copy" title="Copy Text">📋</button>
-                    <button class="icon-btn" id="modal-close" title="Close">✕</button>
+                    <button class="icon-btn" id="modal-copy" title="Copy Text" type="button">📋</button>
+                    <button class="icon-btn" id="modal-close" title="Close" type="button">✕</button>
                 </div>
             </div>
-            <div class="modal-body" id="modal-body">
-                <!-- Content -->
-            </div>
+            <div class="modal-body" id="modal-body"></div>
         </div>
     </div>
-    </main>
-    </div>
 
-    <script src="data.js"></script>
+    <script src="data.js" defer></script>
     <script src="script.js" type="module"></script>
 </body>
 

@@ -1,403 +1,525 @@
-// script.js - v3.0 Enhanced for GovData
+'use strict';
 
-// Global State
-let APP_STATE = {
-    docs: [],
-    entities: {
-        ministries: [],
-        departments: [],
-        acts: []
-    },
-    tables: [],
-    wordFreq: []
+const STOP_WORDS = new Set([
+  'their', 'about', 'which', 'other', 'under', 'these', 'shall', 'where', 'section',
+  'government', 'india', 'central', 'state', 'office', 'order', 'general', 'department', 'ministry'
+]);
+
+const APP_STATE = {
+  docs: [],
+  entities: {
+    ministries: [],
+    acts: []
+  },
+  tables: [],
+  wordFreq: []
 };
 
-// --- Initialization ---
+const SELECTORS = {
+  docList: document.getElementById('doc-list'),
+  tableList: document.getElementById('table-list'),
+  searchInput: document.getElementById('search-input'),
+  filterMinistry: document.getElementById('filter-ministry'),
+  filterType: document.getElementById('filter-type'),
+  searchStats: document.getElementById('search-stats'),
+  searchResults: document.getElementById('search-results'),
+  modal: document.getElementById('doc-modal'),
+  modalTitle: document.getElementById('modal-title'),
+  modalBody: document.getElementById('modal-body'),
+  modalCopy: document.getElementById('modal-copy'),
+  modalClose: document.getElementById('modal-close')
+};
 
 async function init() {
-    console.log("Initializing GovData Dashboard v3.0...");
+  APP_STATE.docs = await loadDocuments();
 
-    // Check for Data
-    if (window.APP_DATA) {
-        APP_STATE.docs = window.APP_DATA;
-    } else {
-        try {
-            const resp = await fetch('extracted_data_enhanced.json');
-            if (!resp.ok) throw new Error("Data fetch failed");
-            APP_STATE.docs = await resp.json();
-            console.log("Data loaded via fetch");
-        } catch (e) {
-            console.error(e);
-            // Fallback for demo/dev if data.js didn't load global
-            if (typeof APP_DATA !== 'undefined') APP_STATE.docs = APP_DATA;
-        }
-    }
+  if (!APP_STATE.docs.length) {
+    console.error('No data found.');
+    safeSetText('doc-count', '0');
+    safeSetText('doc-words', '0');
+    safeSetText('doc-acts', '0');
+    return;
+  }
 
-    if (!APP_STATE.docs.length) {
-        console.error("No data found!");
-        return;
-    }
-
-    analyzeContent();
-    setupNavigation();
-    setupSearch();
-    setupModal();
-    renderDashboard();
-    renderAnalytics();
-
-    // Remove loading indicators
-    document.querySelectorAll('.stat-value').forEach(el => el.classList.remove('loading'));
+  analyzeContent();
+  setupNavigation();
+  setupSearch();
+  setupModal();
+  renderDashboard();
+  renderAnalytics();
 }
 
-// --- Analysis Engine ---
+async function loadDocuments() {
+  if (Array.isArray(window.APP_DATA) && window.APP_DATA.length) {
+    return window.APP_DATA.map(normalizeDoc);
+  }
+
+  try {
+    const resp = await fetch('extracted_data_enhanced.json', {
+      method: 'GET',
+      headers: { Accept: 'application/json' },
+      cache: 'no-store'
+    });
+
+    if (!resp.ok) {
+      throw new Error(`Data fetch failed: ${resp.status}`);
+    }
+
+    const payload = await resp.json();
+    return Array.isArray(payload) ? payload.map(normalizeDoc) : [];
+  } catch (error) {
+    console.error('Failed to load extracted data.', error);
+    return [];
+  }
+}
+
+function normalizeDoc(doc) {
+  const text = typeof doc?.text === 'string' ? doc.text : '';
+  return {
+    fileName: String(doc?.fileName ?? 'Untitled document'),
+    text,
+    lowerText: text.toLowerCase(),
+    textLength: Number.isFinite(doc?.textLength) ? doc.textLength : text.length,
+    tables: Array.isArray(doc?.tables) ? doc.tables : []
+  };
+}
 
 function analyzeContent() {
-    let allMinistries = [];
-    let allActs = [];
-    let allWords = [];
-    let allTables = [];
+  const allMinistries = [];
+  const allActs = [];
+  const allWords = [];
+  const allTables = [];
 
-    APP_STATE.docs.forEach(doc => {
-        const text = doc.text || "";
+  for (const doc of APP_STATE.docs) {
+    const ministryMatches = doc.text.match(/Ministry\s+of\s+[A-Z][a-z]+(?:\s+(?:and|&)\s+)?[A-Z][a-z]+/g) ?? [];
+    allMinistries.push(...ministryMatches);
 
-        // 1. Entities
-        const ministryMatches = text.match(/Ministry\s+of\s+[A-Z][a-z]+(?:\s+(?:and|&)\s+)?[A-Z][a-z]+/g) || [];
-        allMinistries.push(...ministryMatches);
+    const actMatches = doc.text.match(/[A-Z][a-zA-Z\s]*\sAct(?:,\s+\d{4})?/g) ?? [];
+    allActs.push(...actMatches);
 
-        const actMatches = text.match(/[A-Z][a-zA-Z\s]*\sAct(?:,\s+\d{4})?/g) || [];
-        allActs.push(...actMatches);
-
-        // 2. Tables
-        if (doc.tables && doc.tables.length > 0) {
-            doc.tables.forEach((t, i) => {
-                allTables.push({
-                    file: doc.fileName,
-                    id: i + 1,
-                    content: t
-                });
-            });
-        }
-
-        // 3. Word Cloud Data (Simple stopword removal)
-        const words = text.toLowerCase().match(/\b[a-z]{5,}\b/g) || [];
-        const stopWords = ["their", "about", "which", "other", "under", "these", "shall", "where", "section", "government", "india", "central", "state", "office", "order", "general", "department", "ministry"];
-        allWords.push(...words.filter(w => !stopWords.includes(w)));
+    doc.tables.forEach((tableText, index) => {
+      allTables.push({
+        file: doc.fileName,
+        id: index + 1,
+        content: String(tableText)
+      });
     });
 
-    APP_STATE.entities.ministries = countFrequency(allMinistries);
-    APP_STATE.entities.acts = countFrequency(allActs);
-    APP_STATE.tables = allTables;
-    APP_STATE.wordFreq = countFrequency(allWords).slice(0, 50); // Top 50 words
+    const words = doc.lowerText.match(/\b[a-z]{5,}\b/g) ?? [];
+    allWords.push(...words.filter((word) => !STOP_WORDS.has(word)));
+  }
+
+  APP_STATE.entities.ministries = countFrequency(allMinistries);
+  APP_STATE.entities.acts = countFrequency(allActs);
+  APP_STATE.tables = allTables;
+  APP_STATE.wordFreq = countFrequency(allWords).slice(0, 50);
 }
 
-function countFrequency(arr) {
-    const counts = {};
-    arr.forEach(item => {
-        const clean = item.trim();
-        if (clean.length > 2) {
-            counts[clean] = (counts[clean] || 0) + 1;
-        }
-    });
-    return Object.entries(counts)
-        .sort((a, b) => b[1] - a[1])
-        .map(([name, count]) => ({ name, count }));
-}
+function countFrequency(values) {
+  const counts = new Map();
 
-// --- Rendering ---
+  for (const value of values) {
+    const normalized = String(value).trim();
+    if (normalized.length < 3) continue;
+    counts.set(normalized, (counts.get(normalized) ?? 0) + 1);
+  }
+
+  return [...counts.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .map(([name, count]) => ({ name, count }));
+}
 
 function renderDashboard() {
-    // 1. KPI Cards
-    safeSetText('doc-count', APP_STATE.docs.length);
+  safeSetText('doc-count', String(APP_STATE.docs.length));
 
-    const totalWords = APP_STATE.docs.reduce((sum, d) => sum + (d.text ? d.text.length : 0), 0);
-    safeSetText('doc-words', formatCompact(totalWords));
+  const totalCharacters = APP_STATE.docs.reduce((sum, doc) => sum + doc.textLength, 0);
+  safeSetText('doc-words', formatCompact(totalCharacters));
+  safeSetText('doc-acts', String(APP_STATE.entities.acts.length));
 
-    safeSetText('doc-acts', APP_STATE.entities.acts.length);
+  renderBarChart('ministryChart', APP_STATE.entities.ministries.slice(0, 8), 'Mentions');
 
-    // 2. Main Chart: Ministries
-    renderBarChart(
-        'ministryChart',
-        APP_STATE.entities.ministries.slice(0, 8),
-        'Mentions'
-    );
+  const typeCounts = countFrequency(APP_STATE.docs.map((doc) => detectType(doc.lowerText)));
+  renderDoughnutChart('typeChart', typeCounts, 'Document Types');
 
-    // 3. Document Types Chart (by file content)
-    const types = APP_STATE.docs.map(d => {
-        const text = d.text.toLowerCase();
-        if (text.includes("act,") || text.includes("act 19") || text.includes("act 20")) return "Acts & Rules";
-        if (text.includes("report") || text.includes("annual")) return "Reports";
-        return "Notices & Others";
-    });
-    const typeCounts = countFrequency(types);
+  renderDocList(APP_STATE.docs);
+}
 
-    renderDoughnutChart(
-        'typeChart',
-        typeCounts,
-        'Document Types'
-    );
-
-    // 4. Update Document List
-    renderDocList(APP_STATE.docs);
+function detectType(lowerText) {
+  if (lowerText.includes('act,') || lowerText.includes('act 19') || lowerText.includes('act 20')) {
+    return 'Acts & Rules';
+  }
+  if (lowerText.includes('report') || lowerText.includes('annual')) {
+    return 'Reports';
+  }
+  return 'Notices & Others';
 }
 
 function renderDocList(docs) {
-    const docList = document.getElementById('doc-list');
-    if (!docList) return;
+  if (!SELECTORS.docList) return;
 
-    docList.innerHTML = docs.map(doc => `
-        <div class="doc-item" onclick="openModal('${doc.fileName}')">
-            <div style="display:flex; justify-content:space-between; align-items:start;">
-                <h4>${doc.fileName}</h4>
-                <div class="doc-icon" style="opacity:0.5; font-size:1.5rem;">📄</div>
-            </div>
-            <div class="doc-meta">
-                <span>${(doc.textLength / 1024).toFixed(1)} KB</span>
-                <span>•</span>
-                <span>${doc.tables ? doc.tables.length : 0} Tables</span>
-            </div>
-            <button class="btn-sm">Read Document</button>
-        </div>
-    `).join('');
+  SELECTORS.docList.replaceChildren();
+
+  for (const doc of docs) {
+    const item = document.createElement('article');
+    item.className = 'doc-item';
+    item.tabIndex = 0;
+    item.dataset.file = doc.fileName;
+
+    const topRow = document.createElement('div');
+    topRow.style.display = 'flex';
+    topRow.style.justifyContent = 'space-between';
+    topRow.style.alignItems = 'start';
+
+    const title = document.createElement('h4');
+    title.textContent = doc.fileName;
+
+    const icon = document.createElement('div');
+    icon.className = 'doc-icon';
+    icon.style.opacity = '0.5';
+    icon.style.fontSize = '1.5rem';
+    icon.textContent = '📄';
+
+    topRow.append(title, icon);
+
+    const meta = document.createElement('div');
+    meta.className = 'doc-meta';
+
+    const size = document.createElement('span');
+    size.textContent = `${(doc.textLength / 1024).toFixed(1)} KB`;
+
+    const separator = document.createElement('span');
+    separator.textContent = '•';
+
+    const tableCount = document.createElement('span');
+    tableCount.textContent = `${doc.tables.length} Tables`;
+
+    meta.append(size, separator, tableCount);
+
+    const button = document.createElement('button');
+    button.className = 'btn-sm';
+    button.type = 'button';
+    button.textContent = 'Read Document';
+
+    item.append(topRow, meta, button);
+    SELECTORS.docList.appendChild(item);
+  }
+
+  SELECTORS.docList.addEventListener('click', handleDocListOpen);
+  SELECTORS.docList.addEventListener('keydown', (event) => {
+    if (event.key === 'Enter') handleDocListOpen(event);
+  });
+}
+
+function handleDocListOpen(event) {
+  const target = event.target instanceof Element ? event.target.closest('.doc-item') : null;
+  if (!target?.dataset.file) return;
+  openModal(target.dataset.file);
 }
 
 function renderAnalytics() {
-    // 1. Word Cloud (Bubble Chart Proxy)
-    const ctx = document.getElementById('wordCloudChart');
-    if (ctx) {
-        const data = APP_STATE.wordFreq.slice(0, 20).map(w => ({
-            x: Math.random() * 100,
-            y: Math.random() * 100,
-            r: Math.min(w.count / 2, 30), // Scale radius
-            label: w.name
-        }));
+  renderWordChart();
 
-        new Chart(ctx, {
-            type: 'bubble',
-            data: {
-                datasets: [{
-                    label: 'Keywords',
-                    data: data,
-                    backgroundColor: 'rgba(56, 189, 248, 0.6)',
-                    borderColor: '#38bdf8'
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: { display: false },
-                    tooltip: {
-                        callbacks: {
-                            label: (ctx) => ctx.raw.label + ": " + ctx.raw.r * 2 // Restore count approx
-                        }
-                    }
-                },
-                scales: {
-                    x: { display: false },
-                    y: { display: false }
-                }
-            }
-        });
-    }
+  if (!SELECTORS.tableList) return;
+  SELECTORS.tableList.replaceChildren();
 
-    // 2. Table Explorer
-    const tableListContainer = document.getElementById('table-list');
-    if (tableListContainer) {
-        tableListContainer.innerHTML = APP_STATE.tables.map(t => `
-            <div class="table-item" onclick="alert('Table Viewer coming in v3.1!')">
-                <div style="color:var(--accent); font-weight:600;">${t.file}</div>
-                <div style="color:var(--text-muted); font-size:0.85rem;">Table #${t.id} - ${t.content.length} characters</div>
-            </div>
-        `).join('');
-    }
+  for (const table of APP_STATE.tables) {
+    const item = document.createElement('div');
+    item.className = 'table-item';
+
+    const file = document.createElement('div');
+    file.style.color = 'var(--accent)';
+    file.style.fontWeight = '600';
+    file.textContent = table.file;
+
+    const meta = document.createElement('div');
+    meta.style.color = 'var(--text-muted)';
+    meta.style.fontSize = '0.85rem';
+    meta.textContent = `Table #${table.id} - ${table.content.length} characters`;
+
+    item.append(file, meta);
+    SELECTORS.tableList.appendChild(item);
+  }
 }
 
-// --- Interaction ---
+function renderWordChart() {
+  const ctx = document.getElementById('wordCloudChart');
+  if (!ctx) return;
+
+  const dataset = APP_STATE.wordFreq.slice(0, 20).map((word) => ({
+    x: Math.random() * 100,
+    y: Math.random() * 100,
+    r: Math.min(word.count / 2, 30),
+    label: word.name
+  }));
+
+  new Chart(ctx, {
+    type: 'bubble',
+    data: {
+      datasets: [{
+        label: 'Keywords',
+        data: dataset,
+        backgroundColor: 'rgba(56, 189, 248, 0.6)',
+        borderColor: '#38bdf8'
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: (context) => `${context.raw.label}: ${context.raw.r * 2}`
+          }
+        }
+      },
+      scales: {
+        x: { display: false },
+        y: { display: false }
+      }
+    }
+  });
+}
 
 function setupNavigation() {
-    const tabs = document.querySelectorAll('.sidebar li[data-tab]');
-    tabs.forEach(tab => {
-        tab.addEventListener('click', () => {
-            document.querySelectorAll('.sidebar li').forEach(t => t.classList.remove('active'));
-            tab.classList.add('active');
+  const tabs = document.querySelectorAll('.sidebar li[data-tab]');
+  tabs.forEach((tab) => {
+    tab.addEventListener('click', () => {
+      document.querySelectorAll('.sidebar li').forEach((item) => item.classList.remove('active'));
+      tab.classList.add('active');
 
-            document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
-            const viewId = tab.dataset.tab + '-view';
-            const view = document.getElementById(viewId);
-            if (view) view.classList.add('active');
-        });
+      document.querySelectorAll('.view').forEach((view) => view.classList.remove('active'));
+      document.getElementById(`${tab.dataset.tab}-view`)?.classList.add('active');
     });
+  });
 }
 
 function setupSearch() {
-    const searchInput = document.getElementById('search-input');
-    const filterMinistry = document.getElementById('filter-ministry');
-    const filterType = document.getElementById('filter-type');
-    const resultsContainer = document.getElementById('search-results');
+  if (!SELECTORS.searchInput || !SELECTORS.filterMinistry || !SELECTORS.filterType || !SELECTORS.searchResults || !SELECTORS.searchStats) {
+    return;
+  }
 
-    // Populate Filters
-    if (filterMinistry) {
-        APP_STATE.entities.ministries.forEach(m => {
-            const opt = document.createElement('option');
-            opt.value = m.name;
-            opt.innerText = `${m.name} (${m.count})`;
-            filterMinistry.appendChild(opt);
-        });
+  APP_STATE.entities.ministries.forEach((ministry) => {
+    const option = document.createElement('option');
+    option.value = ministry.name;
+    option.textContent = `${ministry.name} (${ministry.count})`;
+    SELECTORS.filterMinistry.appendChild(option);
+  });
+
+  const performSearch = debounce(() => {
+    const query = SELECTORS.searchInput.value.trim().toLowerCase();
+    const ministryFilter = SELECTORS.filterMinistry.value;
+    const typeFilter = SELECTORS.filterType.value;
+
+    if (query.length < 2 && !ministryFilter && !typeFilter) {
+      SELECTORS.searchResults.replaceChildren();
+      SELECTORS.searchStats.textContent = '';
+      return;
     }
 
-    const performSearch = () => {
-        const query = searchInput.value.toLowerCase();
-        const ministryFilter = filterMinistry.value;
-        const typeFilter = filterType.value;
+    const hits = APP_STATE.docs
+      .filter((doc) => matchesFilters(doc, ministryFilter, typeFilter))
+      .flatMap((doc) => buildSearchHit(doc, query));
 
-        if (query.length < 2 && !ministryFilter && !typeFilter) {
-            resultsContainer.innerHTML = '';
-            document.getElementById('search-stats').innerText = '';
-            return;
-        }
+    SELECTORS.searchStats.textContent = `${hits.length} results found`;
+    renderSearchResults(hits);
+  }, 150);
 
-        const hits = [];
-        APP_STATE.docs.forEach(doc => {
-            const text = doc.text.toLowerCase();
-
-            // Apply Filters
-            if (ministryFilter && !doc.text.includes(ministryFilter)) return;
-            if (typeFilter === 'act' && !text.includes('act')) return;
-            // (Simple type logic for demo)
-
-            if (query && text.includes(query)) {
-                // Snippet Logic
-                let idx = text.indexOf(query);
-                const start = Math.max(0, idx - 60);
-                const end = Math.min(text.length, idx + query.length + 60);
-                let snippet = doc.text.substring(start, end);
-
-                // Highlight
-                snippet = snippet.replace(new RegExp(query, 'gi'), match => `<mark>${match}</mark>`);
-
-                hits.push({
-                    file: doc.fileName,
-                    snippet: "..." + snippet + "..."
-                });
-            } else if (!query) {
-                // Filter only match
-                hits.push({ file: doc.fileName, snippet: "Document matches filters." });
-            }
-        });
-
-        document.getElementById('search-stats').innerText = `${hits.length} results found`;
-
-        if (hits.length === 0) {
-            resultsContainer.innerHTML = '<div style="text-align:center; padding:2rem; color:var(--text-muted)">No matches found.</div>';
-        } else {
-            resultsContainer.innerHTML = hits.map(hit => `
-                <div class="search-result-item" onclick="openModal('${hit.file}')" style="cursor:pointer">
-                    <h5>${hit.file}</h5>
-                    <p>${hit.snippet}</p>
-                </div>
-            `).join('');
-        }
-    };
-
-    searchInput?.addEventListener('input', performSearch);
-    filterMinistry?.addEventListener('change', performSearch);
-    filterType?.addEventListener('change', performSearch);
+  SELECTORS.searchInput.addEventListener('input', performSearch);
+  SELECTORS.filterMinistry.addEventListener('change', performSearch);
+  SELECTORS.filterType.addEventListener('change', performSearch);
 }
 
-// --- Modal System ---
+function matchesFilters(doc, ministryFilter, typeFilter) {
+  if (ministryFilter && !doc.text.includes(ministryFilter)) return false;
+  if (typeFilter === 'act' && !doc.lowerText.includes('act')) return false;
+  if (typeFilter === 'report' && !doc.lowerText.includes('report') && !doc.lowerText.includes('annual')) return false;
+  if (typeFilter === 'other' && (doc.lowerText.includes('act') || doc.lowerText.includes('report') || doc.lowerText.includes('annual'))) return false;
+  return true;
+}
+
+function buildSearchHit(doc, query) {
+  if (!query) return [{ file: doc.fileName, snippetNodes: [document.createTextNode('Document matches filters.')] }];
+
+  const idx = doc.lowerText.indexOf(query);
+  if (idx === -1) return [];
+
+  const start = Math.max(0, idx - 60);
+  const end = Math.min(doc.text.length, idx + query.length + 60);
+  const snippet = doc.text.slice(start, end);
+
+  return [{
+    file: doc.fileName,
+    snippetNodes: createHighlightedNodes(`...${snippet}...`, query)
+  }];
+}
+
+function renderSearchResults(hits) {
+  if (!SELECTORS.searchResults) return;
+  SELECTORS.searchResults.replaceChildren();
+
+  if (!hits.length) {
+    const empty = document.createElement('div');
+    empty.style.textAlign = 'center';
+    empty.style.padding = '2rem';
+    empty.style.color = 'var(--text-muted)';
+    empty.textContent = 'No matches found.';
+    SELECTORS.searchResults.appendChild(empty);
+    return;
+  }
+
+  for (const hit of hits) {
+    const item = document.createElement('article');
+    item.className = 'search-result-item';
+    item.style.cursor = 'pointer';
+    item.tabIndex = 0;
+    item.dataset.file = hit.file;
+
+    const title = document.createElement('h5');
+    title.textContent = hit.file;
+
+    const paragraph = document.createElement('p');
+    paragraph.append(...hit.snippetNodes);
+
+    item.append(title, paragraph);
+    SELECTORS.searchResults.appendChild(item);
+  }
+
+  SELECTORS.searchResults.addEventListener('click', handleSearchOpen);
+  SELECTORS.searchResults.addEventListener('keydown', (event) => {
+    if (event.key === 'Enter') handleSearchOpen(event);
+  });
+}
+
+function handleSearchOpen(event) {
+  const target = event.target instanceof Element ? event.target.closest('.search-result-item') : null;
+  if (!target?.dataset.file) return;
+  openModal(target.dataset.file);
+}
+
+function createHighlightedNodes(text, query) {
+  const escapedQuery = escapeRegExp(query);
+  const regex = new RegExp(`(${escapedQuery})`, 'ig');
+  return text.split(regex).map((part) => {
+    if (part.toLowerCase() === query.toLowerCase()) {
+      const mark = document.createElement('mark');
+      mark.textContent = part;
+      return mark;
+    }
+    return document.createTextNode(part);
+  });
+}
 
 function setupModal() {
-    const modal = document.getElementById('doc-modal');
-    const closeBtn = document.getElementById('modal-close');
-    const copyBtn = document.getElementById('modal-copy');
+  if (!SELECTORS.modal || !SELECTORS.modalClose || !SELECTORS.modalCopy || !SELECTORS.modalTitle || !SELECTORS.modalBody) {
+    return;
+  }
 
-    if (!modal) return;
+  SELECTORS.modalClose.addEventListener('click', closeModal);
+  SELECTORS.modal.addEventListener('click', (event) => {
+    if (event.target === SELECTORS.modal) closeModal();
+  });
 
-    window.openModal = function (fileName) {
-        const doc = APP_STATE.docs.find(d => d.fileName === fileName);
-        if (!doc) return;
-
-        document.getElementById('modal-title').innerText = doc.fileName;
-
-        // Simple formatting: newlines to paragraphs
-        const formattedText = doc.text.split('\n').map(para =>
-            para.trim().length > 0 ? `<p>${para}</p>` : '<br>'
-        ).join('');
-
-        document.getElementById('modal-body').innerHTML = formattedText;
-        modal.classList.remove('hidden');
-    };
-
-    closeBtn.addEventListener('click', () => modal.classList.add('hidden'));
-
-    // Close on click outside
-    modal.addEventListener('click', (e) => {
-        if (e.target === modal) modal.classList.add('hidden');
-    });
-
-    copyBtn.addEventListener('click', () => {
-        const text = document.getElementById('modal-body').innerText;
-        navigator.clipboard.writeText(text);
-        alert('Copied to clipboard!');
-    });
+  SELECTORS.modalCopy.addEventListener('click', async () => {
+    try {
+      await navigator.clipboard.writeText(SELECTORS.modalBody.innerText);
+      alert('Copied to clipboard.');
+    } catch {
+      alert('Unable to copy text in this browser context.');
+    }
+  });
 }
 
-// --- Chart Wrappers ---
+function openModal(fileName) {
+  const doc = APP_STATE.docs.find((entry) => entry.fileName === fileName);
+  if (!doc || !SELECTORS.modal || !SELECTORS.modalTitle || !SELECTORS.modalBody) return;
+
+  SELECTORS.modalTitle.textContent = doc.fileName;
+  SELECTORS.modalBody.replaceChildren();
+
+  const fragments = doc.text.split('\n');
+  for (const fragment of fragments) {
+    if (!fragment.trim()) {
+      SELECTORS.modalBody.appendChild(document.createElement('br'));
+      continue;
+    }
+
+    const paragraph = document.createElement('p');
+    paragraph.textContent = fragment;
+    SELECTORS.modalBody.appendChild(paragraph);
+  }
+
+  SELECTORS.modal.classList.remove('hidden');
+}
+
+function closeModal() {
+  SELECTORS.modal?.classList.add('hidden');
+}
 
 function renderBarChart(id, data, label) {
-    const ctx = document.getElementById(id);
-    if (!ctx) return;
-    new Chart(ctx, {
-        type: 'bar',
-        data: {
-            labels: data.map(d => d.name.substring(0, 15) + '...'),
-            datasets: [{
-                label: label,
-                data: data.map(d => d.count),
-                backgroundColor: 'rgba(56, 189, 248, 0.7)',
-                borderRadius: 4
-            }]
-        },
-        options: {
-            plugins: { legend: { display: false } },
-            scales: {
-                x: { ticks: { color: '#94a3b8' }, grid: { display: false } },
-                y: { ticks: { color: '#94a3b8' }, grid: { color: 'rgba(255,255,255,0.05)' } }
-            }
-        }
-    });
+  const ctx = document.getElementById(id);
+  if (!ctx) return;
+
+  new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: data.map((item) => (item.name.length > 15 ? `${item.name.slice(0, 15)}...` : item.name)),
+      datasets: [{
+        label,
+        data: data.map((item) => item.count),
+        backgroundColor: 'rgba(56, 189, 248, 0.7)',
+        borderRadius: 4
+      }]
+    },
+    options: {
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { ticks: { color: '#94a3b8' }, grid: { display: false } },
+        y: { ticks: { color: '#94a3b8' }, grid: { color: 'rgba(255,255,255,0.05)' } }
+      }
+    }
+  });
 }
 
-function renderDoughnutChart(id, data, label) {
-    const ctx = document.getElementById(id);
-    if (!ctx) return;
-    new Chart(ctx, {
-        type: 'doughnut',
-        data: {
-            labels: data.map(d => d.name),
-            datasets: [{
-                data: data.map(d => d.count),
-                backgroundColor: ['#38bdf8', '#818cf8', '#c084fc'],
-                borderWidth: 0
-            }]
-        },
-        options: {
-            plugins: { legend: { position: 'right', labels: { color: '#cbd5e1' } } }
-        }
-    });
-}
+function renderDoughnutChart(id, data) {
+  const ctx = document.getElementById(id);
+  if (!ctx) return;
 
-// --- Utilities ---
+  new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      labels: data.map((item) => item.name),
+      datasets: [{
+        data: data.map((item) => item.count),
+        backgroundColor: ['#38bdf8', '#818cf8', '#c084fc'],
+        borderWidth: 0
+      }]
+    },
+    options: {
+      plugins: { legend: { position: 'right', labels: { color: '#cbd5e1' } } }
+    }
+  });
+}
 
 function safeSetText(id, text) {
-    const el = document.getElementById(id);
-    if (el) el.innerText = text;
+  const el = document.getElementById(id);
+  if (el) el.textContent = String(text);
 }
 
 function formatCompact(num) {
-    return Intl.NumberFormat('en-US', { notation: "compact", maximumFractionDigits: 1 }).format(num);
+  return Intl.NumberFormat('en-US', { notation: 'compact', maximumFractionDigits: 1 }).format(num);
 }
 
-// Start
-document.addEventListener('DOMContentLoaded', init);
+function debounce(fn, delayMs) {
+  let timeoutId;
+  return (...args) => {
+    clearTimeout(timeoutId);
+    timeoutId = setTimeout(() => fn(...args), delayMs);
+  };
+}
 
+function escapeRegExp(text) {
+  return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+document.addEventListener('DOMContentLoaded', init);
