@@ -349,7 +349,7 @@ async function fetchOllamaModels() {
     AI_STATE.modelLoaded = true;
   } catch (error) {
     SELECTORS.ollamaModel.innerHTML = '<option value="">Unable to connect</option>';
-    setAnalysisOutput(`Unable to reach Ollama. Ensure the service is running locally and accessible.\n\n${String(error.message || error)}`);
+    setAnalysisOutput(`Unable to reach Ollama. Ensure the service is running and accessible from this app.\n\nIf this site runs in WSL/Docker while Ollama runs on Windows, set URL to http://host.docker.internal:11434.\n\n${String(error.message || error)}`);
   }
 }
 
@@ -451,7 +451,7 @@ async function runOllamaAnalysis() {
 function sanitizeOllamaBaseUrl(value) {
   try {
     const parsed = new URL(value || 'http://localhost:11434');
-    const allowedHosts = new Set(['localhost', '127.0.0.1']);
+    const allowedHosts = new Set(['localhost', '127.0.0.1', '::1', 'host.docker.internal']);
     if (!allowedHosts.has(parsed.hostname)) return 'http://localhost:11434';
     return `${parsed.protocol}//${parsed.host}`;
   } catch {
