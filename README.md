@@ -1,64 +1,85 @@
-# GovData Insight Dashboard
+# GovData Insight (Secure Local PDF + Ollama Analysis)
 
-An interactive web dashboard for exploring and analyzing Government of India documents, including the Allocation of Business Rules and Public Enterprises data.
+GovData Insight has been redeveloped into a **local-first government document analysis platform**. You can upload government PDFs, extract text locally, and query an Ollama model running on your laptop.
 
-![Dashboard Preview](screenshot.png)
+## What is new
 
-## Features
+- Secure backend API for upload + analysis workflow (`/api/upload`, `/api/analyze`, `/api/health`).
+- PDF validation with extension check, magic header check, body size limit (15 MB), and filename sanitization.
+- Local Ollama integration through configurable endpoint (`OLLAMA_URL`) and model (`OLLAMA_MODEL`).
+- Modernized UI with a guided 2-step flow:
+  1. Upload a government PDF.
+  2. Ask AI questions against the extracted content.
+- Additional server hardening:
+  - Basic in-memory rate limiting.
+  - Secure HTTP headers (`X-Frame-Options`, `X-Content-Type-Options`, `COOP`, etc.).
+  - Path traversal protection for static files.
 
-- **📊 Dashboard Analytics**: View statistics on documents, word counts, and legislative acts found
-- **📈 Interactive Charts**: Visualize ministry references and document size distributions using Chart.js
-- **🔍 Deep Search**: Search across all documents with highlighted results and context snippets
-- **📄 Document Explorer**: Browse and preview extracted document content
+## Architecture
 
-## Data Sources
+- **Frontend:** `index.html`, `style.css`, `script.js`
+- **Backend:** `server_setup.js` (Node.js native HTTP server)
+- **Seed data:** `data.js` (legacy extracted data shown in dashboard chart)
 
-The dashboard analyzes extracted text from official Government of India PDF documents including:
-- Government of India (Allocation of Business) Rules, 1961
-- Public Enterprises documentation
-- Various ministry and department records
+## Requirements
 
-## Technology Stack
+- Node.js 18+
+- Ollama running locally (default: `http://127.0.0.1:11434`)
+- Recommended for text extraction: `pdftotext` (from `poppler-utils`)
 
-- **HTML5** - Semantic structure
-- **CSS3** - Modern dark theme with glassmorphism effects
-- **JavaScript (ES2023 modules)** - Hardened application logic with safer DOM APIs
-- **Chart.js** - Data visualization
+If `pdftotext` is not installed, uploads still work and analysis can run, but extraction quality is limited.
 
+## Run locally
 
-## Security & Modernization Updates
-
-- Uses safer DOM rendering patterns (`textContent`, `createElement`) to reduce XSS exposure.
-- Adds a strict Content Security Policy (CSP) to limit script, style, and embedding sources.
-- Removes unnecessary third-party runtime scripts and keeps dependencies minimal.
-- Introduces debounced search + normalized in-memory document indexing for better performance.
-
-## Getting Started
-
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/YOUR_USERNAME/government-works.git
-   ```
-
-2. Open `index.html` in your browser
-
-No build process or server required - it's a static website!
-
-## Project Structure
-
-```
-government-works/
-├── index.html      # Main dashboard page
-├── style.css       # Styles and theme
-├── script.js       # Application logic
-├── data.js         # Extracted document data
-└── README.md       # This file
+```bash
+node server_setup.js
 ```
 
-## License
+Open:
 
-This project is for educational and research purposes. Government documents are public domain.
+```text
+http://localhost:8080
+```
 
----
+## Ollama setup example
 
-*Built with ❤️ for transparency in governance*
+```bash
+ollama serve
+ollama pull llama3.1:8b
+```
+
+Optional env config:
+
+```bash
+OLLAMA_URL=http://127.0.0.1:11434 OLLAMA_MODEL=llama3.1:8b node server_setup.js
+```
+
+## API summary
+
+### `GET /api/health`
+Returns backend health, selected model, and upload count.
+
+### `POST /api/upload`
+JSON body:
+
+```json
+{
+  "fileName": "budget_report.pdf",
+  "contentBase64": "<base64_data>"
+}
+```
+
+### `POST /api/analyze`
+JSON body:
+
+```json
+{
+  "documentId": "<id_from_upload>",
+  "question": "Summarize key fiscal policy changes"
+}
+```
+
+## Notes
+
+- This is designed for local/offline-adjacent workflows where government data should stay on controlled infrastructure.
+- For production deployment, plug in persistent storage, authN/authZ, malware scanning, and structured audit logs.
