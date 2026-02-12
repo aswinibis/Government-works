@@ -73,14 +73,17 @@ function parseJsonBody(req) {
   });
 }
 
-async function postJson(url, payload) {
-  try {
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    });
+const ALLOWED_OLLAMA_HOSTS = new Set(['localhost', '127.0.0.1', '::1', 'host.docker.internal']);
 
+async function requestJson(url, method = 'GET', payload) {
+  try {
+    const options = { method, headers: {} };
+    if (payload !== undefined) {
+      options.headers['Content-Type'] = 'application/json';
+      options.body = JSON.stringify(payload);
+    }
+
+    const response = await fetch(url, options);
     const json = await response.json().catch(() => ({}));
     return { ok: response.ok, status: response.status, json };
   } catch {
@@ -91,7 +94,7 @@ async function postJson(url, payload) {
 function getSafeOllamaUrl(baseUrl) {
   try {
     const parsed = new URL(baseUrl || 'http://localhost:11434');
-    if (!['localhost', '127.0.0.1'].includes(parsed.hostname)) {
+    if (!ALLOWED_OLLAMA_HOSTS.has(parsed.hostname)) {
       return 'http://localhost:11434';
     }
     return `${parsed.protocol}//${parsed.host}`;
@@ -106,7 +109,7 @@ async function handleApi(req, res) {
   if (req.url === '/api/ollama/models') {
     const body = await parseJsonBody(req);
     const baseUrl = getSafeOllamaUrl(body.baseUrl);
-    const upstream = await postJson(`${baseUrl}/api/tags`, {});
+    const upstream = await requestJson(`${baseUrl}/api/tags`, 'GET');
 
     if (!upstream.ok) {
       res.writeHead(502, { 'Content-Type': 'application/json; charset=utf-8' });
@@ -146,7 +149,7 @@ async function handleApi(req, res) {
       documentText
     ].join('\n');
 
-    const upstream = await postJson(`${baseUrl}/api/generate`, {
+    const upstream = await requestJson(`${baseUrl}/api/generate`, 'POST', {
       model,
       prompt: wrappedPrompt,
       stream: false,
