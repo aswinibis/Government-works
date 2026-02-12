@@ -1,64 +1,64 @@
-# GovData Insight Dashboard
+# GovData Insight Dashboard (Local AI Edition)
 
-An interactive web dashboard for exploring and analyzing Government of India documents, including the Allocation of Business Rules and Public Enterprises data.
+A modernized government document analysis platform for securely exploring ministry PDFs and running **local AI analysis with Ollama**.
 
-![Dashboard Preview](screenshot.png)
+## What is new
 
-## Features
+- 📄 **Government PDF upload and parsing** in-browser using PDF.js.
+- 🤖 **Local Ollama integration** for private, on-device analysis.
+- 🧠 **Prompt-based analysis workflow**: upload document → choose model → run analysis.
+- 🛡️ **Security hardening**:
+  - Content Security Policy tuned for local Ollama access.
+  - Secure HTTP response headers.
+  - Basic API rate limiting and payload size caps.
+  - Host allow-listing for Ollama URL (`localhost` / `127.0.0.1` only).
+  - Path traversal protections for static file hosting.
+- 🎨 **More interactive UI** with a dedicated AI Analysis workspace.
 
-- **📊 Dashboard Analytics**: View statistics on documents, word counts, and legislative acts found
-- **📈 Interactive Charts**: Visualize ministry references and document size distributions using Chart.js
-- **🔍 Deep Search**: Search across all documents with highlighted results and context snippets
-- **📄 Document Explorer**: Browse and preview extracted document content
+## Local setup
 
-## Data Sources
+### 1) Start Ollama locally
 
-The dashboard analyzes extracted text from official Government of India PDF documents including:
-- Government of India (Allocation of Business) Rules, 1961
-- Public Enterprises documentation
-- Various ministry and department records
-
-## Technology Stack
-
-- **HTML5** - Semantic structure
-- **CSS3** - Modern dark theme with glassmorphism effects
-- **JavaScript (ES2023 modules)** - Hardened application logic with safer DOM APIs
-- **Chart.js** - Data visualization
-
-
-## Security & Modernization Updates
-
-- Uses safer DOM rendering patterns (`textContent`, `createElement`) to reduce XSS exposure.
-- Adds a strict Content Security Policy (CSP) to limit script, style, and embedding sources.
-- Removes unnecessary third-party runtime scripts and keeps dependencies minimal.
-- Introduces debounced search + normalized in-memory document indexing for better performance.
-
-## Getting Started
-
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/YOUR_USERNAME/government-works.git
-   ```
-
-2. Open `index.html` in your browser
-
-No build process or server required - it's a static website!
-
-## Project Structure
-
-```
-government-works/
-├── index.html      # Main dashboard page
-├── style.css       # Styles and theme
-├── script.js       # Application logic
-├── data.js         # Extracted document data
-└── README.md       # This file
+```bash
+ollama serve
+ollama pull llama3
 ```
 
-## License
+### 2) Start this website with the secure Node server
 
-This project is for educational and research purposes. Government documents are public domain.
+```bash
+node server_setup.js
+```
 
----
+Then open:
 
-*Built with ❤️ for transparency in governance*
+- `http://localhost:8080`
+
+## AI analysis flow
+
+1. Open the **AI Analysis** tab.
+2. Upload a government PDF.
+3. Confirm the Ollama URL (default `http://localhost:11434`).
+4. Pick a local model.
+5. Enter your analysis prompt and run analysis.
+
+> The PDF file itself is not uploaded to a remote server; text is extracted locally and sent to your local Ollama runtime.
+
+## Project structure
+
+- `index.html` – Dashboard and AI Analysis UI.
+- `style.css` – Modern styles for dashboard + AI workflow.
+- `script.js` – Client logic, analytics, PDF extraction, AI orchestration.
+- `server_setup.js` – Secure static server + Ollama proxy API.
+- `data.js` – Existing extracted government document dataset.
+
+## Security notes
+
+This is a local-first architecture meant for laptops/workstations. For production government deployments, add:
+
+- authentication/authorization,
+- audit logging,
+- request signing,
+- encrypted storage and backups,
+- container hardening and vulnerability scanning,
+- and formal compliance controls mandated by your department.
