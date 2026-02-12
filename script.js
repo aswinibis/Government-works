@@ -27,10 +27,28 @@ const SELECTORS = {
   modalTitle: document.getElementById('modal-title'),
   modalBody: document.getElementById('modal-body'),
   modalCopy: document.getElementById('modal-copy'),
-  modalClose: document.getElementById('modal-close')
+  modalClose: document.getElementById('modal-close'),
+  pdfUpload: document.getElementById('pdf-upload'),
+  uploadStatus: document.getElementById('upload-status'),
+  ollamaUrl: document.getElementById('ollama-url'),
+  ollamaModel: document.getElementById('ollama-model'),
+  refreshModels: document.getElementById('refresh-models'),
+  analysisPrompt: document.getElementById('analysis-prompt'),
+  runAnalysis: document.getElementById('run-analysis'),
+  analysisOutput: document.getElementById('analysis-output')
+};
+
+const AI_STATE = {
+  extractedText: '',
+  selectedFileName: '',
+  modelLoaded: false
 };
 
 async function init() {
+  setupNavigation();
+  setupModal();
+  setupAiAnalysis();
+
   APP_STATE.docs = await loadDocuments();
 
   if (!APP_STATE.docs.length) {
@@ -42,9 +60,7 @@ async function init() {
   }
 
   analyzeContent();
-  setupNavigation();
   setupSearch();
-  setupModal();
   renderDashboard();
   renderAnalytics();
 }
@@ -281,6 +297,175 @@ function renderWordChart() {
   });
 }
 
+
+
+function setupAiAnalysis() {
+  if (!SELECTORS.pdfUpload || !SELECTORS.runAnalysis || !SELECTORS.analysisOutput || !SELECTORS.analysisPrompt || !SELECTORS.ollamaModel || !SELECTORS.ollamaUrl || !SELECTORS.refreshModels) {
+    return;
+  }
+
+  SELECTORS.refreshModels.addEventListener('click', () => fetchOllamaModels());
+  SELECTORS.pdfUpload.addEventListener('change', handlePdfUpload);
+  SELECTORS.runAnalysis.addEventListener('click', runOllamaAnalysis);
+
+  fetchOllamaModels();
+}
+
+async function fetchOllamaModels() {
+  if (!SELECTORS.ollamaModel || !SELECTORS.ollamaUrl) return;
+
+  const baseUrl = sanitizeOllamaBaseUrl(SELECTORS.ollamaUrl.value);
+  SELECTORS.ollamaModel.innerHTML = '<option value="">Loading models...</option>' ;
+
+  try {
+    const response = await fetch('/api/ollama/models', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ baseUrl })
+    });
+
+    if (!response.ok) throw new Error(`Could not fetch models (${response.status})`);
+
+    const payload = await response.json();
+    const models = Array.isArray(payload.models) ? payload.models : [];
+
+    SELECTORS.ollamaModel.replaceChildren();
+
+    if (!models.length) {
+      const option = document.createElement('option');
+      option.value = '';
+      option.textContent = 'No local models found';
+      SELECTORS.ollamaModel.appendChild(option);
+      return;
+    }
+
+    for (const model of models) {
+      const option = document.createElement('option');
+      option.value = model;
+      option.textContent = model;
+      SELECTORS.ollamaModel.appendChild(option);
+    }
+
+    AI_STATE.modelLoaded = true;
+  } catch (error) {
+    SELECTORS.ollamaModel.innerHTML = '<option value="">Unable to connect</option>';
+    setAnalysisOutput(`Unable to reach Ollama. Ensure the service is running locally and accessible.\n\n${String(error.message || error)}`);
+  }
+}
+
+async function handlePdfUpload(event) {
+  const file = event.target.files?.[0];
+  if (!file) return;
+
+  if (file.type !== 'application/pdf') {
+    setUploadStatus('Please choose a valid PDF file.');
+    return;
+  }
+
+  if (file.size > 15 * 1024 * 1024) {
+    setUploadStatus('PDF rejected: maximum allowed file size is 15MB.');
+    return;
+  }
+
+  try {
+    setUploadStatus(`Processing ${file.name}...`);
+    const text = await extractTextFromPdf(file);
+    AI_STATE.extractedText = text.slice(0, 90000);
+    AI_STATE.selectedFileName = file.name;
+    setUploadStatus(`Loaded ${file.name}. Extracted ${formatCompact(text.length)} characters.`);
+  } catch (error) {
+    setUploadStatus('Unable to extract text from this PDF.');
+    setAnalysisOutput(`PDF extraction failed: ${String(error.message || error)}`);
+  }
+}
+
+async function extractTextFromPdf(file) {
+  if (!window.pdfjsLib) {
+    throw new Error('PDF.js library is unavailable.');
+  }
+
+  const arrayBuffer = await file.arrayBuffer();
+  const pdf = await window.pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+  const pages = [];
+
+  for (let pageNo = 1; pageNo <= pdf.numPages; pageNo += 1) {
+    const page = await pdf.getPage(pageNo);
+    const content = await page.getTextContent();
+    pages.push(content.items.map((item) => item.str).join(' '));
+  }
+
+  return pages.join('\n\n');
+}
+
+async function runOllamaAnalysis() {
+  if (!SELECTORS.analysisOutput || !SELECTORS.analysisPrompt || !SELECTORS.ollamaModel || !SELECTORS.ollamaUrl) return;
+
+  if (!AI_STATE.extractedText) {
+    setAnalysisOutput('Please upload a government PDF before running analysis.');
+    return;
+  }
+
+  const model = SELECTORS.ollamaModel.value.trim();
+  if (!model) {
+    setAnalysisOutput('Choose an Ollama model first.');
+    return;
+  }
+
+  const prompt = SELECTORS.analysisPrompt.value.trim();
+  if (prompt.length < 10) {
+    setAnalysisOutput('Prompt is too short. Please add more context for quality analysis.');
+    return;
+  }
+
+  const baseUrl = sanitizeOllamaBaseUrl(SELECTORS.ollamaUrl.value);
+  SELECTORS.runAnalysis.disabled = true;
+  setAnalysisOutput('Analyzing document with local Ollama...');
+
+  try {
+    const response = await fetch('/api/analyze', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        baseUrl,
+        model,
+        fileName: AI_STATE.selectedFileName,
+        prompt,
+        documentText: AI_STATE.extractedText
+      })
+    });
+
+    if (!response.ok) {
+      const errorPayload = await response.json().catch(() => ({}));
+      throw new Error(errorPayload.error || `Analysis failed (${response.status})`);
+    }
+
+    const payload = await response.json();
+    setAnalysisOutput(payload.analysis || 'No analysis returned by model.');
+  } catch (error) {
+    setAnalysisOutput(`Analysis failed: ${String(error.message || error)}\n\nTroubleshooting:\n1. Start Ollama: ollama serve\n2. Pull a model: ollama pull llama3\n3. Ensure URL is correct.`);
+  } finally {
+    SELECTORS.runAnalysis.disabled = false;
+  }
+}
+
+function sanitizeOllamaBaseUrl(value) {
+  try {
+    const parsed = new URL(value || 'http://localhost:11434');
+    const allowedHosts = new Set(['localhost', '127.0.0.1']);
+    if (!allowedHosts.has(parsed.hostname)) return 'http://localhost:11434';
+    return `${parsed.protocol}//${parsed.host}`;
+  } catch {
+    return 'http://localhost:11434';
+  }
+}
+
+function setUploadStatus(message) {
+  if (SELECTORS.uploadStatus) SELECTORS.uploadStatus.textContent = message;
+}
+
+function setAnalysisOutput(message) {
+  if (SELECTORS.analysisOutput) SELECTORS.analysisOutput.textContent = message;
+}
 function setupNavigation() {
   const tabs = document.querySelectorAll('.sidebar li[data-tab]');
   tabs.forEach((tab) => {

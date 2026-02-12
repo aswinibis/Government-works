@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="Content-Security-Policy"
-        content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; upgrade-insecure-requests;">
+        content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; style-src 'self' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self' http://localhost:11434 http://127.0.0.1:11434; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; upgrade-insecure-requests; form-action 'self';">
     <title>GovData Insight | Interactive Dashboard</title>
     <link rel="stylesheet" href="style.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -29,6 +29,7 @@
                     <li data-tab="documents">Documents</li>
                     <li data-tab="analytics">Analytics</li>
                     <li data-tab="search">Search</li>
+                    <li data-tab="ai">AI Analysis</li>
                 </ul>
             </nav>
             <div class="status-indicator">
@@ -118,6 +119,44 @@
                     <div id="search-stats" class="search-stats"></div>
                     <div id="search-results" class="results-grid"></div>
                 </div>
+
+                <div id="ai-view" class="view">
+                    <h3>Local Ollama Analysis</h3>
+                    <div class="ai-layout">
+                        <section class="card ai-upload-card">
+                            <h4>1) Upload Government PDF</h4>
+                            <input type="file" id="pdf-upload" accept="application/pdf" />
+                            <p id="upload-status" class="muted-text">No PDF selected yet.</p>
+                            <p class="muted-text small">Files are processed locally in your browser and only extracted text is sent to your local Ollama runtime.</p>
+                        </section>
+
+                        <section class="card ai-config-card">
+                            <h4>2) Configure AI Model</h4>
+                            <div class="field-group">
+                                <label for="ollama-url">Ollama URL</label>
+                                <input id="ollama-url" type="url" value="http://localhost:11434" placeholder="http://localhost:11434" />
+                            </div>
+                            <div class="field-group">
+                                <label for="ollama-model">Ollama Model</label>
+                                <select id="ollama-model">
+                                    <option value="">Loading models...</option>
+                                </select>
+                            </div>
+                            <button id="refresh-models" class="primary-btn" type="button">Refresh Models</button>
+                        </section>
+
+                        <section class="card ai-prompt-card">
+                            <h4>3) Analysis Prompt</h4>
+                            <textarea id="analysis-prompt" rows="6">Summarize this government document in bullet points, list ministries involved, identify policy risks, and provide compliance observations.</textarea>
+                            <button id="run-analysis" class="primary-btn" type="button">Run Analysis</button>
+                        </section>
+
+                        <section class="card ai-result-card">
+                            <h4>AI Result</h4>
+                            <pre id="analysis-output">Analysis output will appear here.</pre>
+                        </section>
+                    </div>
+                </div>
             </div>
         </main>
     </div>
@@ -136,6 +175,7 @@
     </div>
 
     <script src="data.js" defer></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.8.69/pdf.min.js" defer></script>
     <script src="script.js" type="module"></script>
 </body>
 
